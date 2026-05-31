@@ -187,7 +187,8 @@ function buildZoneOverlay() {{
 window.addEventListener('resize', buildZoneOverlay);
 document.getElementById('floorplan').addEventListener('load', buildZoneOverlay);
 
-const ws = new WebSocket(`ws://${{location.host}}/ws/dashboard`);
+const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
+const ws = new WebSocket(`${{wsProtocol}}://${{location.host}}/ws/dashboard`);
 
 ws.onmessage = (e) => {{
   const data = JSON.parse(e.data);
