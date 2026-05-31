@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: store-intelligence-api
+    env: docker
+    branch: main
+    dockerfilePath: Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///app/data/store_intelligence.db
+      - key: LOG_LEVEL
+        value: INFO
+
+  - type: web
+    name: store-intelligence-dashboard
+    env: docker
+    branch: main
+    dockerfilePath: Dockerfile
+    autoDeploy: true
+    startCommand: sh -c "python dashboard/web_dashboard.py --api ${API_URL} --port ${PORT}"
+    envVars:
+      - key: API_URL
+        value: https://store-intelligence-api.onrender.com

@@ -1,0 +1,30 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env
+.venv/
+venv/
+
+# Coverage reports
+.coverage
+.coverage.*
+htmlcov/
+
+# Pytest
+.pytest_cache/
+
+# Logs and runtime output
+logs/
+output/
+*.log
+*.sqlite
+*.db
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+.DS_Store

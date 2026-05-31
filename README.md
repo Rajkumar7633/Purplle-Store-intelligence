@@ -18,6 +18,27 @@ Open the live dashboard: http://localhost:8080
 
 ---
 
+## Deploy on Render
+
+This repo is ready for Render deployment using `render.yaml` and the existing `Dockerfile`.
+
+1. Push your code to GitHub on `main`.
+2. Open https://dashboard.render.com/new/web-service.
+3. Connect your GitHub repo and select branch `main`.
+4. Choose `Docker` as the environment.
+5. Render will use `render.yaml` to create two services:
+   - `store-intelligence-api` → FastAPI backend
+   - `store-intelligence-dashboard` → live dashboard web UI
+
+After deployment, the public service URLs should be:
+
+- `https://store-intelligence-api.onrender.com`
+- `https://store-intelligence-dashboard.onrender.com`
+
+If you only want the API, disable the dashboard service or remove the second service from `render.yaml`.
+
+---
+
 ## Running the Detection Pipeline Against Your Clips
 
 ### Option A — Run locally (recommended for faster iteration)
@@ -66,22 +87,24 @@ docker run --rm \
 
 ## API Endpoints
 
-| Endpoint | Description |
-|----------|-------------|
-| `POST /events/ingest` | Ingest up to 500 events (idempotent) |
-| `GET /stores/{id}/metrics` | Unique visitors, conversion rate, dwell, queue |
-| `GET /stores/{id}/funnel` | Entry → Zone → Billing → Purchase with drop-off % |
-| `GET /stores/{id}/heatmap` | Zone frequency + dwell, normalised 0-100 |
-| `GET /stores/{id}/anomalies` | Queue spike, conversion drop, dead zones |
-| `GET /health` | DB status, per-store feed lag, STALE_FEED warnings |
-| `POST /pos/ingest` | Ingest POS transactions for conversion correlation |
+| Endpoint                     | Description                                        |
+| ---------------------------- | -------------------------------------------------- |
+| `POST /events/ingest`        | Ingest up to 500 events (idempotent)               |
+| `GET /stores/{id}/metrics`   | Unique visitors, conversion rate, dwell, queue     |
+| `GET /stores/{id}/funnel`    | Entry → Zone → Billing → Purchase with drop-off %  |
+| `GET /stores/{id}/heatmap`   | Zone frequency + dwell, normalised 0-100           |
+| `GET /stores/{id}/anomalies` | Queue spike, conversion drop, dead zones           |
+| `GET /health`                | DB status, per-store feed lag, STALE_FEED warnings |
+| `POST /pos/ingest`           | Ingest POS transactions for conversion correlation |
 
 ### Example: Check metrics
+
 ```bash
 curl http://localhost:8000/stores/STORE_BLR_002/metrics | python -m json.tool
 ```
 
 ### Example: Ingest events
+
 ```bash
 curl -X POST http://localhost:8000/events/ingest \
   -H "Content-Type: application/json" \
@@ -93,6 +116,7 @@ curl -X POST http://localhost:8000/events/ingest \
 ## Store Layout Configuration
 
 Edit `data/store_layout.json` to define:
+
 - Camera entry line positions (`entry_line_y`)
 - Zone names, bounding boxes, and SKU zone labels
 - Camera-to-zone coverage mapping
