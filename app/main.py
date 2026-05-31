@@ -2,10 +2,12 @@
 Store Intelligence API — FastAPI entrypoint.
 All endpoints are production-aware with structured logging, idempotency, and graceful degradation.
 """
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+import httpx
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,12 +32,44 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
+async def keep_alive_task(app_url: str) -> None:
+    """Background task to keep the service warm on Render (prevent spin-down after 15 min inactivity)."""
+    await asyncio.sleep(60)  # Wait 60 seconds for service to fully start
+    while True:
+        try:
+            await asyncio.sleep(240)  # Ping every 4 minutes (well under 15-min Render timeout)
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(f"{app_url}/health")
+                if response.status_code == 200:
+                    logger.debug("Keep-alive ping successful")
+        except Exception as exc:
+            logger.warning("Keep-alive ping failed (may be in local dev): %s", type(exc).__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     setup_logging(settings.LOG_LEVEL)
     await init_db()
     logger.info("Store Intelligence API started")
+    
+    # Start keep-alive task if running on Render (has RENDER env var)
+    import os
+    keep_alive_handle = None
+    if os.getenv("RENDER"):
+        app_url = os.getenv("APP_URL", "http://localhost:8000")
+        logger.info("Render detected. Starting keep-alive task for %s", app_url)
+        keep_alive_handle = asyncio.create_task(keep_alive_task(app_url))
+    
     yield
+    
+    # Cancel keep-alive task on shutdown
+    if keep_alive_handle:
+        keep_alive_handle.cancel()
+        try:
+            await keep_alive_handle
+        except asyncio.CancelledError:
+            pass
+    
     logger.info("Store Intelligence API shutting down")
 
 

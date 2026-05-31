@@ -10,6 +10,10 @@ services:
         value: sqlite+aiosqlite:///app/data/store_intelligence.db
       - key: LOG_LEVEL
         value: INFO
+      - key: APP_URL
+        value: https://store-intelligence-api.onrender.com
+      - key: RENDER
+        value: "true"
 
   - type: web
     name: store-intelligence-dashboard
