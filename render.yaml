@@ -17,7 +17,7 @@ services:
     branch: main
     dockerfilePath: Dockerfile
     autoDeploy: true
-    startCommand: sh -c "python3 dashboard/web_dashboard.py --api ${API_URL} --port ${PORT}"
+    startCommand: sh -c "/usr/local/bin/python3 dashboard/web_dashboard.py --api ${API_URL} --port ${PORT}"
     envVars:
       - key: API_URL
         value: https://store-intelligence-api.onrender.com
