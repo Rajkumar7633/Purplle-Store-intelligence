@@ -37,6 +37,8 @@ After deployment, the public service URLs should be:
 
 If you only want the API, disable the dashboard service or remove the second service from `render.yaml`.
 
+> Important: for the dashboard service use `python3`, not `python`, in the `Docker Command` / start command.
+
 ---
 
 ## Running the Detection Pipeline Against Your Clips
