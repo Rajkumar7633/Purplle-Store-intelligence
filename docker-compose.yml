@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: store-intelligence-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/store_intelligence.db
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=INFO
+      - STALE_FEED_THRESHOLD_MINUTES=10
+      - ANOMALY_QUEUE_SPIKE_THRESHOLD=5
+      - ANOMALY_CONVERSION_DROP_PCT=0.20
+      - DEAD_ZONE_MINUTES=30
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  demo-seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: store-intelligence-seed
+    command: >
+      sh -c "
+        TODAY=$$(date -u +%Y-%m-%d) &&
+        TMPEVENTS=/tmp/events_redate.jsonl &&
+        sed \"s/2026-05-31/$${TODAY}/g\" /app/output/STORE_BLR_002/events_today.jsonl > $${TMPEVENTS} &&
+        TMPPOS=/tmp/pos_redate.csv &&
+        sed \"s/2026-05-31/$${TODAY}/g\" /app/data/pos_today.csv > $${TMPPOS} &&
+        python /app/pipeline/ingest_to_api.py --events $${TMPEVENTS} --api http://api:8000 &&
+        python /app/pipeline/ingest_to_api.py --pos $${TMPPOS} --api http://api:8000 &&
+        echo 'Demo data loaded for '$${TODAY}
+      "
+    volumes:
+      - ./output:/app/output
+      - ./data:/app/data
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: store-intelligence-dashboard
+    command: python /app/dashboard/web_dashboard.py --api http://api:8000 --port 8080
+    ports:
+      - "8080:8080"
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped

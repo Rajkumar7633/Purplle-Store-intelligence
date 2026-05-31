@@ -1,0 +1,122 @@
+{
+  "store_id": "STORE_BLR_002",
+  "store_name": "Purplle — Brigade Road, Bangalore",
+  "address": "Brigade Road, Bengaluru, Karnataka 560025",
+  "floor_plan_image": "data/store_floorplan.png",
+  "store_dimensions_mm": { "width": 7441, "height": 4264 },
+  "open_hours": { "start": "10:00", "end": "21:00", "timezone": "Asia/Kolkata" },
+  "cameras": {
+    "CAM_ENTRY_01": {
+      "file": "CAM 1.mp4",
+      "description": "Entry/Exit glass door — left wall (1920x1080 @ 29.97fps, h264)",
+      "entry_line_y": 0.50,
+      "covers_zones": ["ENTRY_ZONE"]
+    },
+    "CAM_FLOOR_01": {
+      "file": "CAM 2.mp4",
+      "description": "Top-shelf skincare brands — EB Korean to Lakme Skin (1920x1080 @ 29.97fps, h264)",
+      "entry_line_y": null,
+      "covers_zones": ["SKINCARE"]
+    },
+    "CAM_FLOOR_02": {
+      "file": "CAM 3.mp4",
+      "description": "Centre floor — Fragrance unit, Nail Corner, F.O.H (1920x1080 @ 29.97fps, h264)",
+      "entry_line_y": null,
+      "covers_zones": ["FRAGRANCE", "NAIL_CORNER"]
+    },
+    "CAM_BILLING_01": {
+      "file": "CAM 4.mp4",
+      "description": "Cash counter / billing queue — right wall (1920x1080 @ 25fps, hevc)",
+      "entry_line_y": null,
+      "covers_zones": ["BILLING"]
+    },
+    "CAM_FLOOR_03": {
+      "file": "CAM 5.mp4",
+      "description": "Bottom-shelf makeup & haircare — Maybelline to Streax (1920x1080 @ 25fps, hevc)",
+      "entry_line_y": null,
+      "covers_zones": ["MAKEUP", "HAIRCARE", "ACCESSORIES"]
+    }
+  },
+  "zones": [
+    {
+      "zone_id": "ENTRY_ZONE",
+      "display_name": "Store Entry",
+      "category": "entry",
+      "cameras_covering": ["CAM_ENTRY_01"],
+      "bbox_pct": [0.00, 0.35, 0.05, 0.65],
+      "description": "Existing glass entry/exit door — left wall"
+    },
+    {
+      "zone_id": "SKINCARE",
+      "display_name": "Skincare — Top Shelf",
+      "category": "skincare",
+      "brands": ["EB Korean", "The Face Shop", "Good Vibes", "DermDoc", "Minimalist", "Aqualogica", "Lakme Skin"],
+      "cameras_covering": ["CAM_FLOOR_01"],
+      "bbox_pct": [0.06, 0.00, 0.75, 0.18],
+      "description": "Premium skincare brands along the top wall shelf"
+    },
+    {
+      "zone_id": "ACCESSORIES",
+      "display_name": "Accessories",
+      "category": "accessories",
+      "brands": ["Accessories"],
+      "cameras_covering": ["CAM_FLOOR_03"],
+      "bbox_pct": [0.75, 0.00, 0.86, 0.18],
+      "description": "Beauty accessories and tools — top-right counter (highlighted)"
+    },
+    {
+      "zone_id": "FRAGRANCE",
+      "display_name": "Fragrance",
+      "category": "fragrance",
+      "brands": ["Fragrance"],
+      "cameras_covering": ["CAM_FLOOR_02"],
+      "bbox_pct": [0.27, 0.22, 0.36, 0.73],
+      "description": "Fragrance standalone display unit — centre floor"
+    },
+    {
+      "zone_id": "NAIL_CORNER",
+      "display_name": "Nail Corner",
+      "category": "nail",
+      "brands": ["Nail Unit", "Nail Corner A"],
+      "cameras_covering": ["CAM_FLOOR_02"],
+      "bbox_pct": [0.36, 0.22, 0.44, 0.73],
+      "description": "Nail unit / nail corner — centre floor beside fragrance"
+    },
+    {
+      "zone_id": "MAKEUP",
+      "display_name": "Makeup Unit + Brands",
+      "category": "makeup",
+      "brands": ["Makeup Unit", "Maybelline", "Faces Canada", "Colorbar + Sugar", "Swiss Beauty"],
+      "cameras_covering": ["CAM_FLOOR_03"],
+      "bbox_pct": [0.06, 0.75, 0.57, 1.00],
+      "description": "Central makeup island + bottom-shelf makeup brands"
+    },
+    {
+      "zone_id": "HAIRCARE",
+      "display_name": "Haircare Brands",
+      "category": "haircare",
+      "brands": ["Lakme", "Renee NY Bae", "Alps Goodness", "Streax"],
+      "cameras_covering": ["CAM_FLOOR_03"],
+      "bbox_pct": [0.27, 0.75, 0.87, 1.00],
+      "description": "Haircare & colour brands along the bottom-right shelf"
+    },
+    {
+      "zone_id": "PMU",
+      "display_name": "PMU Studio",
+      "category": "services",
+      "brands": ["PMU"],
+      "cameras_covering": ["CAM_BILLING_01"],
+      "bbox_pct": [0.88, 0.48, 0.97, 0.80],
+      "description": "Permanent Makeup (PMU) service studio — far right"
+    },
+    {
+      "zone_id": "BILLING",
+      "display_name": "Cash Counter",
+      "category": "billing",
+      "brands": ["Cash Counter"],
+      "cameras_covering": ["CAM_BILLING_01"],
+      "bbox_pct": [0.76, 0.18, 0.88, 0.68],
+      "description": "Billing queue and cash counter — right wall, 55\" LED panel nearby"
+    }
+  ]
+}

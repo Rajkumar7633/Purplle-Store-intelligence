@@ -1,0 +1,14 @@
+[run]
+source = app
+concurrency = thread,greenlet
+branch = false
+omit =
+    app/logging_config.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if TYPE_CHECKING:
+    @abstractmethod

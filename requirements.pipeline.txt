@@ -1,0 +1,11 @@
+ultralytics==8.3.9
+opencv-python-headless==4.10.0.84
+numpy==1.26.4
+scipy==1.14.1
+shapely==2.0.6
+Pillow==10.4.0
+torch>=2.0.0
+torchvision>=0.15.0
+requests==2.32.3
+python-dotenv==1.0.1
+tqdm==4.66.5
