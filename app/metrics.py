@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import EventORM, POSTransactionORM
 from app.models import MetricsResponse, ZoneDwell
 from app.config import get_settings
+from app.time_utils import get_recent_event_window
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -20,15 +21,21 @@ settings = get_settings()
 async def get_store_metrics(store_id: str, db: AsyncSession) -> MetricsResponse:
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    since = await get_recent_event_window(store_id, db, now)
+    if since != today_start:
+        logger.warning(
+            "No events today for %s, falling back to last 24h window for metrics",
+            store_id,
+        )
 
-    # ── Unique visitors today (exclude staff) ─────────────────────────────
+    # ── Unique visitors in the selected window (exclude staff) ─────────────
     unique_visitors_q = await db.execute(
         select(func.count(distinct(EventORM.visitor_id))).where(
             and_(
                 EventORM.store_id == store_id,
                 EventORM.event_type == "ENTRY",
                 EventORM.is_staff == False,
-                EventORM.timestamp >= today_start,
+                EventORM.timestamp >= since,
             )
         )
     )
@@ -41,7 +48,7 @@ async def get_store_metrics(store_id: str, db: AsyncSession) -> MetricsResponse:
                 EventORM.store_id == store_id,
                 EventORM.event_type == "ENTRY",
                 EventORM.is_staff == False,
-                EventORM.timestamp >= today_start,
+                EventORM.timestamp >= since,
             )
         )
     )
@@ -53,14 +60,14 @@ async def get_store_metrics(store_id: str, db: AsyncSession) -> MetricsResponse:
                 EventORM.store_id == store_id,
                 EventORM.event_type == "EXIT",
                 EventORM.is_staff == False,
-                EventORM.timestamp >= today_start,
+                EventORM.timestamp >= since,
             )
         )
     )
     total_exits: int = total_exits_q.scalar() or 0
 
     # ── Conversion rate via POS correlation ──────────────────────────────
-    conversion_rate = await _compute_conversion_rate(store_id, db, today_start)
+    conversion_rate = await _compute_conversion_rate(store_id, db, since)
 
     # ── Avg dwell per zone ────────────────────────────────────────────────
     zone_dwell_rows = await db.execute(
@@ -74,7 +81,7 @@ async def get_store_metrics(store_id: str, db: AsyncSession) -> MetricsResponse:
                 EventORM.event_type.in_(["ZONE_DWELL", "ZONE_ENTER"]),
                 EventORM.zone_id.isnot(None),
                 EventORM.is_staff == False,
-                EventORM.timestamp >= today_start,
+                EventORM.timestamp >= since,
             )
         ).group_by(EventORM.zone_id)
     )
@@ -93,7 +100,7 @@ async def get_store_metrics(store_id: str, db: AsyncSession) -> MetricsResponse:
             and_(
                 EventORM.store_id == store_id,
                 EventORM.event_type == "BILLING_QUEUE_JOIN",
-                EventORM.timestamp >= today_start,
+                EventORM.timestamp >= since,
             )
         ).order_by(EventORM.timestamp.desc(), EventORM.id.desc()).limit(1)
     )
@@ -101,7 +108,7 @@ async def get_store_metrics(store_id: str, db: AsyncSession) -> MetricsResponse:
     current_queue_depth: int = (queue_row[0] or 0) if queue_row else 0
 
     # ── Abandonment rate ──────────────────────────────────────────────────
-    abandonment_rate = await _compute_abandonment_rate(store_id, db, today_start)
+    abandonment_rate = await _compute_abandonment_rate(store_id, db, since)
 
     return MetricsResponse(
         store_id=store_id,

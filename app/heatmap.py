@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import EventORM
 from app.models import HeatmapResponse, HeatmapZone
+from app.time_utils import get_recent_event_window
 
 logger = logging.getLogger(__name__)
 MIN_SESSIONS_FOR_CONFIDENCE = 20
@@ -19,15 +20,21 @@ MIN_SESSIONS_FOR_CONFIDENCE = 20
 async def get_store_heatmap(store_id: str, db: AsyncSession) -> HeatmapResponse:
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    since = await get_recent_event_window(store_id, db, now)
+    if since != today_start:
+        logger.warning(
+            "No events today for %s, falling back to last 24h window for heatmap",
+            store_id,
+        )
 
-    # Total unique customer sessions today
+    # Total unique customer sessions for the selected window
     total_sessions_q = await db.execute(
         select(func.count(distinct(EventORM.visitor_id))).where(
             and_(
                 EventORM.store_id == store_id,
                 EventORM.event_type == "ENTRY",
                 EventORM.is_staff == False,
-                EventORM.timestamp >= today_start,
+                EventORM.timestamp >= since,
             )
         )
     )
@@ -46,7 +53,7 @@ async def get_store_heatmap(store_id: str, db: AsyncSession) -> HeatmapResponse:
                 EventORM.event_type.in_(["ZONE_ENTER", "ZONE_DWELL", "ZONE_EXIT"]),
                 EventORM.zone_id.isnot(None),
                 EventORM.is_staff == False,
-                EventORM.timestamp >= today_start,
+                EventORM.timestamp >= since,
             )
         ).group_by(EventORM.zone_id)
     )

@@ -5,11 +5,12 @@ store-intelligence system format and ingest it live into the API.
 Output format: store_id,transaction_id,timestamp,basket_value_inr
 - Group by invoice_number (one row per transaction)
 - Basket value = sum of NMV per invoice (carry bags / 0-value excluded)
-- Timestamp uses today's date (2026-05-31) + original time-of-day
-  so the demo-seed sed-replacement keeps working on future restarts
+- Timestamp uses today's UTC date + original time-of-day
+  so the seed service can re-date live POS records on restart
 """
 import csv, json, sys
 from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 import urllib.request, urllib.error
 
@@ -17,7 +18,7 @@ SRC = Path("/data/Brigade_Bangalore_10_April_26 (1)bc6219c.csv")
 OUT = Path("/app/data/pos_today.csv")
 API = "http://host.docker.internal:8000"
 STORE_ID = "STORE_BLR_002"
-TODAY = "2026-05-31"  # sed placeholder kept identical
+TODAY = datetime.now(timezone.utc).date().isoformat()
 
 # ── 1. Read and group by invoice ──────────────────────────────────────────
 invoices = defaultdict(lambda: {"nmv": 0.0, "time": None})
@@ -79,4 +80,4 @@ except urllib.error.HTTPError as e:
     print(f"HTTP {e.code}: {body}")
 except Exception as e:
     print(f"Could not reach API: {e}")
-    print("(pos_today.csv was updated — data will load on next demo-seed restart)")
+    print("(pos_today.csv was updated — data will load on next seed restart)")

@@ -32,8 +32,8 @@ This repo is ready for Render deployment using `render.yaml` and the existing `D
 
 After deployment, the public service URLs should be:
 
-- `https://store-intelligence-api.onrender.com`
-- `https://store-intelligence-dashboard.onrender.com`
+- `https://store-intelligence-api-i4yz.onrender.com`
+- `https://store-intelligence-dashboard-cj5c.onrender.com`
 
 If you only want the API, disable the dashboard service or remove the second service from `render.yaml`.
 

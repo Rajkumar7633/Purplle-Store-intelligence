@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import EventORM, POSTransactionORM
 from app.models import FunnelResponse, FunnelStage
 from app.config import get_settings
+from app.time_utils import get_recent_event_window
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -22,6 +23,12 @@ settings = get_settings()
 async def get_store_funnel(store_id: str, db: AsyncSession) -> FunnelResponse:
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    since = await get_recent_event_window(store_id, db, now)
+    if since != today_start:
+        logger.warning(
+            "No events today for %s, falling back to last 24h window for funnel",
+            store_id,
+        )
 
     # ── Stage 1: All unique customer sessions (entries) ──────────────────
     entry_q = await db.execute(
@@ -30,7 +37,7 @@ async def get_store_funnel(store_id: str, db: AsyncSession) -> FunnelResponse:
                 EventORM.store_id == store_id,
                 EventORM.event_type == "ENTRY",
                 EventORM.is_staff == False,
-                EventORM.timestamp >= today_start,
+                EventORM.timestamp >= since,
             )
         )
     )
@@ -48,7 +55,7 @@ async def get_store_funnel(store_id: str, db: AsyncSession) -> FunnelResponse:
                 EventORM.zone_id.not_ilike("%entry%"),
                 EventORM.zone_id.not_ilike("%exit%"),
                 EventORM.is_staff == False,
-                EventORM.timestamp >= today_start,
+                EventORM.timestamp >= since,
                 EventORM.visitor_id.in_(entered_list),
             )
         )
@@ -63,7 +70,7 @@ async def get_store_funnel(store_id: str, db: AsyncSession) -> FunnelResponse:
                 EventORM.event_type.in_(["BILLING_QUEUE_JOIN", "ZONE_ENTER"]),
                 EventORM.zone_id.ilike("%billing%"),
                 EventORM.is_staff == False,
-                EventORM.timestamp >= today_start,
+                EventORM.timestamp >= since,
                 EventORM.visitor_id.in_(entered_list),
             )
         )
@@ -72,7 +79,7 @@ async def get_store_funnel(store_id: str, db: AsyncSession) -> FunnelResponse:
 
     # ── Stage 4: Visitors who completed purchase (POS correlation) ───────
     converted_visitors = await _get_converted_visitors(
-        store_id, db, today_start, entered_visitors
+        store_id, db, since, entered_visitors
     )
 
     # ── Build funnel stages ───────────────────────────────────────────────

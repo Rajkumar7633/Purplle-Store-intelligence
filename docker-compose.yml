@@ -28,7 +28,7 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  demo-seed:
+  store-seed:
     build:
       context: .
       dockerfile: Dockerfile
@@ -42,7 +42,7 @@ services:
         sed \"s/2026-05-31/$${TODAY}/g\" /app/data/pos_today.csv > $${TMPPOS} &&
         python /app/pipeline/ingest_to_api.py --events $${TMPEVENTS} --api http://api:8000 &&
         python /app/pipeline/ingest_to_api.py --pos $${TMPPOS} --api http://api:8000 &&
-        echo 'Demo data loaded for '$${TODAY}
+        echo 'Store data loaded for '$${TODAY}
       "
     volumes:
       - ./output:/app/output
