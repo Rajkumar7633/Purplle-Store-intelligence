@@ -20,16 +20,6 @@ async def get_recent_event_window(store_id: str, db: AsyncSession, now: datetime
     if today_events > 0:
         return today_start
 
-    event_count_24h_q = await db.execute(
-        select(func.count()).where(
-            EventORM.store_id == store_id,
-            EventORM.timestamp >= last_24h_start,
-        )
-    )
-    last_24h_events = event_count_24h_q.scalar() or 0
-    if last_24h_events > 0:
-        return last_24h_start
-
     earliest_event_q = await db.execute(
         select(func.min(EventORM.timestamp)).where(
             EventORM.store_id == store_id,

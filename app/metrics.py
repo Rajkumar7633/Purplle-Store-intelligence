@@ -24,7 +24,7 @@ async def get_store_metrics(store_id: str, db: AsyncSession) -> MetricsResponse:
     since = await get_recent_event_window(store_id, db, now)
     if since != today_start:
         logger.warning(
-            "No events today for %s, falling back to last 24h window for metrics",
+            "No events today for %s, falling back to earliest available historical data",
             store_id,
         )
 
