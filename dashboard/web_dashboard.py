@@ -281,9 +281,12 @@ def _fetch_all(store_id: str) -> dict:
     def safe_get(path):
         try:
             r = requests.get(f"{API_URL}{path}", timeout=5)
-            return r.json() if r.status_code == 200 else {}
-        except Exception:
-            return {}
+            if r.status_code == 200:
+                return r.json()
+            logger.warning("API request failed: %s %s %s", API_URL, path, r.status_code)
+        except requests.exceptions.RequestException as exc:
+            logger.warning("API request exception: %s %s %s", API_URL, path, exc)
+        return {}
 
     return {
         "store_id": store_id,

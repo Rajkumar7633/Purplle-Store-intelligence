@@ -11,7 +11,7 @@ services:
       - key: LOG_LEVEL
         value: INFO
       - key: APP_URL
-        value: https://store-intelligence-api.onrender.com
+        value: https://store-intelligence-api-i4yz.onrender.com
       - key: RENDER
         value: "true"
 
@@ -24,4 +24,4 @@ services:
     startCommand: sh -c "/usr/local/bin/python3 dashboard/web_dashboard.py --api ${API_URL} --port ${PORT}"
     envVars:
       - key: API_URL
-        value: https://store-intelligence-api.onrender.com
+        value: https://store-intelligence-api-i4yz.onrender.com
