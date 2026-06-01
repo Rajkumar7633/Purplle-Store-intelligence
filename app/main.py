@@ -3,18 +3,23 @@ Store Intelligence API — FastAPI entrypoint.
 All endpoints are production-aware with structured logging, idempotency, and graceful degradation.
 """
 import asyncio
+import json
 import logging
+import os
 from contextlib import asynccontextmanager
+from datetime import datetime
+from pathlib import Path
 from typing import AsyncGenerator
 
 import httpx
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.database import get_db, init_db
+from app.database import get_db, init_db, EventORM, POSTransactionORM, AsyncSessionLocal
 from app.logging_config import RequestLoggingMiddleware, setup_logging
 from app.models import (
     IngestRequest, IngestResponse,
@@ -30,6 +35,76 @@ from app.health import get_health
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
+
+
+async def _seed_sample_data_if_empty() -> None:
+    async with AsyncSessionLocal() as db:
+        event_count_q = await db.execute(select(func.count()).select_from(EventORM))
+        total_events = event_count_q.scalar() or 0
+        if total_events > 0:
+            logger.info("Sample seeding skipped: database already contains %d events", total_events)
+            return
+
+        root = Path(__file__).resolve().parents[1]
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+
+        event_file = root / "output" / "STORE_BLR_002" / "events_today.jsonl"
+        pos_file = root / "data" / "pos_today.csv"
+
+        if event_file.exists():
+            raw_events = []
+            with event_file.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    line = line.replace("2026-05-31", today)
+                    try:
+                        raw_events.append(json.loads(line))
+                    except json.JSONDecodeError as exc:
+                        logger.warning("Skipped malformed sample event line: %s", exc)
+            if raw_events:
+                await ingest_events(raw_events, db)
+                logger.info("Auto-seeded %d sample events into the database", len(raw_events))
+        else:
+            logger.warning("Sample events file missing: %s", event_file)
+
+        if pos_file.exists():
+            transactions = []
+            with pos_file.open("r", encoding="utf-8") as f:
+                lines = [line.replace("2026-05-31", today) for line in f]
+            import csv
+            reader = csv.DictReader(lines)
+            for row in reader:
+                transactions.append({
+                    "store_id": row.get("store_id", ""),
+                    "transaction_id": row.get("transaction_id", ""),
+                    "timestamp": row.get("timestamp", ""),
+                    "basket_value_inr": float(row.get("basket_value_inr", 0) or 0),
+                })
+            if transactions:
+                added = 0
+                for txn in transactions:
+                    existing = await db.execute(
+                        select(POSTransactionORM.id).where(
+                            POSTransactionORM.transaction_id == txn["transaction_id"]
+                        )
+                    )
+                    if existing.fetchone():
+                        continue
+                    ts = datetime.fromisoformat(txn["timestamp"].replace("Z", "+00:00"))
+                    db.add(POSTransactionORM(
+                        store_id=txn["store_id"],
+                        transaction_id=txn["transaction_id"],
+                        timestamp=ts.replace(tzinfo=None),
+                        basket_value_inr=txn["basket_value_inr"],
+                    ))
+                    added += 1
+                if added > 0:
+                    await db.flush()
+                logger.info("Auto-seeded %d POS transactions into the database", added)
+        else:
+            logger.warning("Sample POS file missing: %s", pos_file)
 
 
 async def keep_alive_task(app_url: str) -> None:
@@ -50,10 +125,10 @@ async def keep_alive_task(app_url: str) -> None:
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     setup_logging(settings.LOG_LEVEL)
     await init_db()
+    await _seed_sample_data_if_empty()
     logger.info("Store Intelligence API started")
     
     # Start keep-alive task if running on Render (has RENDER env var)
-    import os
     keep_alive_handle = None
     if os.getenv("RENDER"):
         app_url = os.getenv("APP_URL", "http://localhost:8000")

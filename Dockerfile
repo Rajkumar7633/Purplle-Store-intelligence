@@ -13,6 +13,7 @@ COPY app/ ./app/
 COPY dashboard/ ./dashboard/
 COPY data/ ./data/
 COPY pipeline/ ./pipeline/
+COPY output/ ./output/
 
 RUN mkdir -p /app/data /app/logs /app/output
 
