@@ -108,11 +108,15 @@ async def _seed_sample_data_if_empty() -> None:
 
 
 async def keep_alive_task(app_url: str) -> None:
-    """Background task to keep the service warm on Render (prevent spin-down after 15 min inactivity)."""
+    """Background task to keep the service warm on Render.
+
+    Note: this self-ping only works while the process is already running. On a Render free-tier service
+    that has been suspended due to inactivity, an external uptime monitor is still recommended.
+    """
     await asyncio.sleep(60)  # Wait 60 seconds for service to fully start
     while True:
         try:
-            await asyncio.sleep(240)  # Ping every 4 minutes (well under 15-min Render timeout)
+            await asyncio.sleep(300)  # Ping every 5 minutes (well under 15-min Render timeout)
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(f"{app_url}/health")
                 if response.status_code == 200:

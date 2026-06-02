@@ -37,6 +37,8 @@ After deployment, the public service URLs should be:
 
 If you only want the API, disable the dashboard service or remove the second service from `render.yaml`.
 
+> Note: Render free-tier services can still sleep after idle periods. The API includes optional self-ping support, but for reliable dashboard availability use an external uptime monitor such as UptimeRobot or move to Render Starter.
+>
 > Important: for the dashboard service use `python3`, not `python`, in the `Docker Command` / start command.
 
 ---
