@@ -28,3 +28,6 @@ output/
 .idea/
 *.swp
 .DS_Store
+
+# Local store clip videos and derived artifacts
+clips/**/*.mp4
