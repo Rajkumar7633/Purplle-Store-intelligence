@@ -588,6 +588,17 @@ class TestIngestPos:
         result = ingest_mod.ingest_pos(path, "http://localhost:8000")
         assert mock_post.call_count >= 2
 
+    def test_ingest_pos_legacy_order_csv(self, tmp_path):
+        path = tmp_path / "legacy_pos.csv"
+        path.write_text(
+            "order_id,order_date,order_time,store_id,product_id,brand_name,total_amount\n"
+            "101,10-04-2026,12:15:05,ST1008,399945,Faces Canada,302.33\n"
+            "101,10-04-2026,12:15:05,ST1008,353621,Faces Canada,491.77\n"
+            "102,10-04-2026,12:42:18,ST1008,407887,Purplle,1\n"
+        )
+        result = ingest_mod.ingest_pos(str(path), "http://localhost:8000")
+        assert result["total"] == 2
+
 
 # ─── ingest_to_api.py: main() CLI ─────────────────────────────────────────────
 

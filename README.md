@@ -68,6 +68,39 @@ python pipeline/ingest_to_api.py \
   --api http://localhost:8000
 ```
 
+### Using your provided dataset
+
+If your raw CCTV clips and POS file are in the root workspace, run the pipeline from `store-intelligence` and point to the source files directly:
+
+```bash
+python pipeline/detect.py \
+  --clip "../Store 1/CAM 3 - entry.mp4" \
+  --store-id STORE_1 \
+  --camera-id CAM_ENTRY_01 \
+  --layout data/store_layout.json \
+  --output output/store1_entry_events.jsonl \
+  --start-time 2026-04-10T12:00:00Z \
+  --api-url http://localhost:8000
+```
+
+```bash
+python pipeline/ingest_to_api.py \
+  --pos "../POS - sample transactionsb1e826f.csv" \
+  --api http://localhost:8000
+```
+
+This project now supports the provided order-based POS CSV schema and normalizes it into the API transaction format.
+
+If you also want to convert the provided legacy sample events JSONL into the Store Intelligence schema, use:
+
+```bash
+python scripts/convert_sample_events.py \
+  "../sample_eventsbe42122.jsonl" \
+  output/sample_events_converted.jsonl
+```
+
+Then ingest the converted file with `/events/ingest`.
+
 ### Option B — Run pipeline in Docker
 
 ```bash
