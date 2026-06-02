@@ -278,16 +278,14 @@ ZONE_LAYOUT = [
 ]
 ZONE_LAYOUT_JS = json.dumps(ZONE_LAYOUT)
 
-DASHBOARD_HTML = build_dashboard_html(STORE_ID)
-
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard_page():
-    return DASHBOARD_HTML
+async def dashboard_page(store_id: str = STORE_ID):
+    return build_dashboard_html(store_id)
 
 
 @app.websocket("/ws/dashboard")
-async def dashboard_ws(websocket: WebSocket, store_id: str = "STORE_BLR_002"):
+async def dashboard_ws(websocket: WebSocket, store_id: str = STORE_ID):
     await websocket.accept()
     try:
         while True:
