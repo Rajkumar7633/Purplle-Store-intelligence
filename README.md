@@ -178,6 +178,27 @@ pytest tests/test_metrics.py -v
 - **Web UI**: http://localhost:8080 (auto-refreshes every 5 seconds via WebSocket)
 - **Terminal**: `python dashboard/terminal_dashboard.py --store STORE_BLR_002`
 
+### Store-specific dashboard
+
+The web dashboard now loads store-specific floor plan images when available:
+
+- `clips/STORE_1/Store 1 - layout.png`
+- `clips/STORE_2/store 2 - layout.png`
+
+Launch the dashboard for each store with:
+
+```bash
+python dashboard/web_dashboard.py --api http://localhost:8000 --store STORE_1
+```
+
+or:
+
+```bash
+python dashboard/web_dashboard.py --api http://localhost:8000 --store STORE_2
+```
+
+If the store-specific image is missing, the dashboard will fall back to `data/store_floorplan.png`.
+
 ---
 
 ## Architecture

@@ -16,6 +16,14 @@ logger = logging.getLogger(__name__)
 API_INGEST_URL = os.getenv("API_INGEST_URL", "http://localhost:8000/events/ingest")
 
 
+def _normalize_api_url(url: str) -> str:
+    if not url:
+        return url
+    if url.rstrip("/").endswith("/events/ingest"):
+        return url.rstrip("/")
+    return url.rstrip("/") + "/events/ingest"
+
+
 def make_event(
     store_id: str,
     camera_id: str,
@@ -52,7 +60,7 @@ def make_event(
 class EventEmitter:
     def __init__(self, output_path: str, api_url: Optional[str] = None, batch_size: int = 50):
         self.output_path = output_path
-        self.api_url = api_url or API_INGEST_URL
+        self.api_url = _normalize_api_url(api_url or API_INGEST_URL)
         self.batch_size = batch_size
         self._buffer = []
         self._file = open(output_path, "a", encoding="utf-8")

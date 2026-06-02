@@ -2,10 +2,10 @@
 """
 Live web dashboard — FastAPI + WebSocket + HTML.
 Serves a single-page dashboard with real-time metrics, funnel, anomalies,
-and a Brigade Road store heatmap overlay on the actual floor plan.
+and a store floor plan overlay.
 
 Usage:
-    python dashboard/web_dashboard.py --api http://localhost:8000 --port 8080
+    python dashboard/web_dashboard.py --api http://localhost:8000 --port 8080 --store STORE_1
 """
 import argparse
 import asyncio
@@ -19,38 +19,43 @@ from pathlib import Path
 import requests
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse
 
 logger = logging.getLogger(__name__)
 API_URL = os.getenv("API_URL", "http://localhost:8000")
-
 app = FastAPI(title="Store Intelligence Dashboard")
 
-# ── Floor plan image (embedded as base64 so there are no static-file deps) ──
-_FLOORPLAN_B64 = ""
-_FLOORPLAN_PATH = Path(__file__).parent.parent / "data" / "store_floorplan.png"
-if _FLOORPLAN_PATH.exists():
-    _FLOORPLAN_B64 = base64.b64encode(_FLOORPLAN_PATH.read_bytes()).decode()
+ROOT_DIR = Path(__file__).parent.parent
+STORE_FLOORPLAN_PATHS = {
+    "STORE_1": ROOT_DIR / "clips" / "STORE_1" / "Store 1 - layout.png",
+    "STORE_2": ROOT_DIR / "clips" / "STORE_2" / "store 2 - layout.png",
+}
+DEFAULT_FLOORPLAN_PATH = ROOT_DIR / "data" / "store_floorplan.png"
+STORE_LABELS = {
+    "STORE_1": "Store 1",
+    "STORE_2": "Store 2",
+    "STORE_BLR_002": "Brigade Road",
+}
+STORE_ID = os.getenv("STORE_ID", "STORE_BLR_002")
 
 
-# Zone layout matching data/sample_store_layout.json (bbox_pct = [x1, y1, x2, y2])
-ZONE_LAYOUT = [
-    {"zone_id": "SKINCARE",     "label": "Skincare",      "bbox": [0.06, 0.00, 0.75, 0.18]},
-    {"zone_id": "ACCESSORIES",  "label": "Accessories",   "bbox": [0.75, 0.00, 0.86, 0.18]},
-    {"zone_id": "FRAGRANCE",    "label": "Fragrance",     "bbox": [0.27, 0.22, 0.36, 0.73]},
-    {"zone_id": "NAIL_CORNER",  "label": "Nail Corner",   "bbox": [0.36, 0.22, 0.44, 0.73]},
-    {"zone_id": "MAKEUP",       "label": "Makeup",        "bbox": [0.06, 0.75, 0.57, 1.00]},
-    {"zone_id": "HAIRCARE",     "label": "Haircare",      "bbox": [0.27, 0.75, 0.87, 1.00]},
-    {"zone_id": "PMU",          "label": "PMU Studio",    "bbox": [0.88, 0.48, 0.97, 0.80]},
-    {"zone_id": "BILLING",      "label": "Cash Counter",  "bbox": [0.76, 0.18, 0.88, 0.68]},
-]
-ZONE_LAYOUT_JS = json.dumps(ZONE_LAYOUT)
+def _load_floorplan_b64(store_id: str) -> str:
+    path = STORE_FLOORPLAN_PATHS.get(store_id)
+    if path and path.exists():
+        return base64.b64encode(path.read_bytes()).decode()
+    if DEFAULT_FLOORPLAN_PATH.exists():
+        return base64.b64encode(DEFAULT_FLOORPLAN_PATH.read_bytes()).decode()
+    return ""
 
-DASHBOARD_HTML = f"""<!DOCTYPE html>
-<html lang="en">
+
+def build_dashboard_html(store_id: str) -> str:
+    label = STORE_LABELS.get(store_id, store_id)
+    floorplan_b64 = _load_floorplan_b64(store_id)
+    return f"""<!DOCTYPE html>
+<html lang=\"en\">
 <head>
-<meta charset="UTF-8">
-<title>Purplle Store Intelligence — Brigade Road</title>
+<meta charset=\"UTF-8\">
+<title>Purplle Store Intelligence — {label}</title>
 <style>
   :root {{
     --bg:#0d1117; --card:#161b22; --accent:#a855f7; --green:#3fb950;
@@ -101,7 +106,7 @@ DASHBOARD_HTML = f"""<!DOCTYPE html>
 </style>
 </head>
 <body>
-<h1>&#9679; Purplle Store Intelligence — Brigade Road, Bangalore</h1>
+<h1>&#9679; Purplle Store Intelligence — {label}</h1>
 <div class="subtitle" id="subtitle">Connecting...</div>
 
 <div class="grid" id="metrics-grid">
@@ -114,9 +119,9 @@ DASHBOARD_HTML = f"""<!DOCTYPE html>
 </div>
 
 <div class="section">
-  <h2>Store Heatmap — Brigade Road Floor Plan</h2>
+  <h2>Store Heatmap — {label} Floor Plan</h2>
   <div id="map-wrap">
-    <img id="floorplan" src="data:image/png;base64,{_FLOORPLAN_B64}" alt="Store Floor Plan">
+    <img id="floorplan" src="data:image/png;base64,{floorplan_b64}" alt="{label} Floor Plan">
     <div id="zone-overlay"></div>
   </div>
   <div class="legend">
@@ -140,7 +145,9 @@ DASHBOARD_HTML = f"""<!DOCTYPE html>
 <footer id="footer">Waiting for data...</footer>
 
 <script>
-const ZONES = {ZONE_LAYOUT_JS};
+const STORE_ID = "{store_id}";
+const STORE_LABEL = "{label}";
+const ZONES = {json.dumps(ZONE_LAYOUT)};
 const scoreMap = {{}};
 
 function heatClass(score) {{
@@ -188,14 +195,14 @@ window.addEventListener('resize', buildZoneOverlay);
 document.getElementById('floorplan').addEventListener('load', buildZoneOverlay);
 
 const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
-const ws = new WebSocket(`${{wsProtocol}}://${{location.host}}/ws/dashboard`);
+const ws = new WebSocket(`${{wsProtocol}}://${{location.host}}/ws/dashboard?store_id=${{STORE_ID}}`);
 
 ws.onmessage = (e) => {{
   const data = JSON.parse(e.data);
-  const {{ metrics, funnel, anomalies, heatmap, store_id, ts }} = data;
+  const {{ metrics, funnel, anomalies, heatmap, ts }} = data;
 
   document.getElementById('subtitle').innerHTML =
-    `<span class="status-dot"></span>Purplle — Brigade Road &nbsp;|&nbsp; ${{ts}}`;
+    `<span class="status-dot"></span>${{STORE_LABEL}} — ${{ts}}`;
 
   if (metrics) {{
     document.getElementById('unique-visitors').textContent = metrics.unique_visitors ?? '—';
@@ -215,7 +222,7 @@ ws.onmessage = (e) => {{
     abEl.className = 'value' + (ab > 0.3 ? ' warn' : '');
 
     document.getElementById('total-entries').textContent = metrics.total_entries ?? '—';
-    document.getElementById('total-exits').textContent   = metrics.total_exits   ?? '—';
+    document.getElementById('total-exits').textContent   = metrics.total_exits ?? '—';
   }}
 
   if (heatmap && heatmap.zones) {{
@@ -254,8 +261,24 @@ ws.onclose = () => {{
   setTimeout(() => location.reload(), 3000);
 }};
 </script>
-</body></html>
-"""
+</body>
+</html>"""
+
+
+# Zone layout matching data/sample_store_layout.json (bbox_pct = [x1, y1, x2, y2])
+ZONE_LAYOUT = [
+    {"zone_id": "SKINCARE",     "label": "Skincare",      "bbox": [0.06, 0.00, 0.75, 0.18]},
+    {"zone_id": "ACCESSORIES",  "label": "Accessories",   "bbox": [0.75, 0.00, 0.86, 0.18]},
+    {"zone_id": "FRAGRANCE",    "label": "Fragrance",     "bbox": [0.27, 0.22, 0.36, 0.73]},
+    {"zone_id": "NAIL_CORNER",  "label": "Nail Corner",   "bbox": [0.36, 0.22, 0.44, 0.73]},
+    {"zone_id": "MAKEUP",       "label": "Makeup",        "bbox": [0.06, 0.75, 0.57, 1.00]},
+    {"zone_id": "HAIRCARE",     "label": "Haircare",      "bbox": [0.27, 0.75, 0.87, 1.00]},
+    {"zone_id": "PMU",          "label": "PMU Studio",    "bbox": [0.88, 0.48, 0.97, 0.80]},
+    {"zone_id": "BILLING",      "label": "Cash Counter",  "bbox": [0.76, 0.18, 0.88, 0.68]},
+]
+ZONE_LAYOUT_JS = json.dumps(ZONE_LAYOUT)
+
+DASHBOARD_HTML = build_dashboard_html(STORE_ID)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -305,4 +328,6 @@ if __name__ == "__main__":
     parser.add_argument("--store", default="STORE_BLR_002")
     args = parser.parse_args()
     API_URL = args.api
+    STORE_ID = args.store
+    DASHBOARD_HTML = build_dashboard_html(STORE_ID)
     uvicorn.run(app, host="0.0.0.0", port=args.port)

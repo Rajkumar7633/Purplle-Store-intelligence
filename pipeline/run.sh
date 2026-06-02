@@ -22,10 +22,10 @@ echo "Clips: ${CLIPS_DIR} | Output: ${OUTPUT_DIR}"
 echo "================================================"
 
 mkdir -p "${OUTPUT_DIR}"
+shopt -s nullglob
 
-# Camera to clip mapping — matches filenames defined in store_layout.json
-# CAM 1.mp4 = Entry  |  CAM 2.mp4 = Floor-01  |  CAM 3.mp4 = Floor-02
-# CAM 4.mp4 = Billing |  CAM 5.mp4 = Floor-03
+# Camera to clip mapping — matches actual clip file naming conventions
+# This allows files like "CAM 1 - zone.mp4" and "CAM 3 - entry.mp4" to be found.
 CAMERA_IDS=(
     "CAM_ENTRY_01"
     "CAM_FLOOR_01"
@@ -33,28 +33,48 @@ CAMERA_IDS=(
     "CAM_BILLING_01"
     "CAM_FLOOR_03"
 )
-CAMERA_FILES=(
-    "CAM 1.mp4"
-    "CAM 2.mp4"
-    "CAM 3.mp4"
-    "CAM 4.mp4"
-    "CAM 5.mp4"
+CAMERA_PATTERNS=(
+    "CAM 1*.mp4"
+    "CAM 2*.mp4"
+    "CAM 3*.mp4"
+    "CAM 4*.mp4"
+    "CAM 5*.mp4"
 )
 
 EVENTS_FILE="${OUTPUT_DIR}/events.jsonl"
 > "${EVENTS_FILE}"  # clear/create
 
-for idx in "${!CAMERA_IDS[@]}"; do
-    CAMERA_ID="${CAMERA_IDS[$idx]}"
-    FILENAME="${CAMERA_FILES[$idx]}"
-    CLIP="${CLIPS_DIR}/${FILENAME}"
+clip_files=("${CLIPS_DIR}"/*.mp4)
+if [ "${#clip_files[@]}" -eq 0 ]; then
+    echo "ERROR: No .mp4 clips found in '${CLIPS_DIR}'"
+    exit 1
+fi
 
-    if [ ! -f "${CLIP}" ]; then
-        echo "WARNING: Clip not found '${CLIP}' — skipping ${CAMERA_ID}"
+for clip in "${clip_files[@]}"; do
+    if [ ! -f "${clip}" ]; then
         continue
     fi
 
-    echo "Processing ${CAMERA_ID}: ${CLIP}"
+    filename="$(basename "${clip}")"
+    filename_lower="$(printf '%s' "${filename}" | tr '[:upper:]' '[:lower:]')"
+
+    if [[ "${filename_lower}" == *entry* ]]; then
+        CAMERA_ID="CAM_ENTRY_01"
+    elif [[ "${filename_lower}" == *billing* ]]; then
+        CAMERA_ID="CAM_BILLING_01"
+    elif [[ "${filename_lower}" == *cam 1* ]]; then
+        CAMERA_ID="CAM_FLOOR_01"
+    elif [[ "${filename_lower}" == *cam 2* ]]; then
+        CAMERA_ID="CAM_FLOOR_02"
+    elif [[ "${filename_lower}" == *cam 4* ]]; then
+        CAMERA_ID="CAM_FLOOR_03"
+    elif [[ "${filename_lower}" == *cam 5* ]]; then
+        CAMERA_ID="CAM_FLOOR_03"
+    else
+        CAMERA_ID="CAM_FLOOR_03"
+    fi
+
+    echo "Processing ${CAMERA_ID}: ${clip}"
     CAMERA_OUTPUT="${OUTPUT_DIR}/events_${CAMERA_ID}.jsonl"
     START_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
